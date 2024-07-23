@@ -39,37 +39,41 @@ struct FramesView: View {
     private var items: FetchedResults<Item>
     
     @State private var showNewFrame = false
+    @State private var searchText = ""
     
     var body: some View {
         NavigationView {
-            ZStack {
+            VStack {
+                TextField("Search", text: $searchText)
+                    .padding(10)
+                    .background(Color(.systemGray6))
+                    .cornerRadius(10)
+                    .padding(.horizontal)
+                
                 ScrollView {
                     LazyVStack(spacing: 15) {
-                        ForEach(items) { item in
+                        ForEach(filteredItems) { item in
                             FrameItemView(item: item)
                         }
                     }
-                }
-                
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            showNewFrame = true
-                        }) {
-                            Image(systemName: "plus")
-                                .font(.title)
-                                .padding()
-                                .background(Circle().fill(Color.blue))
-                                .foregroundColor(.white)
-                        }
-                        .padding(.trailing, 20)
-                        .padding(.bottom, 20)
-                    }
+                    .padding(.horizontal)
                 }
             }
             .navigationTitle("Frames")
+            .overlay(
+                Button(action: {
+                    showNewFrame = true
+                }) {
+                    Image(systemName: "plus")
+                        .font(.title)
+                        .padding()
+                        .background(Circle().fill(Color.blue))
+                        .foregroundColor(.white)
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 20),
+                alignment: .bottomTrailing
+            )
         }
         .fullScreenCover(isPresented: $showNewFrame) {
             NewFrameView(isPresented: $showNewFrame)
@@ -87,6 +91,18 @@ struct FramesView: View {
             try viewContext.save()
         } catch {
             print("Failed to delete all items: \(error)")
+        }
+    }
+    
+    private var filteredItems: [Item] {
+        if searchText.isEmpty {
+            return Array(items)
+        } else {
+            return items.filter { item in
+                let mainText = item.main?.localizedCaseInsensitiveContains(searchText) ?? false
+                let detailsText = item.details?.localizedCaseInsensitiveContains(searchText) ?? false
+                return mainText || detailsText
+            }
         }
     }
 }
@@ -219,7 +235,7 @@ struct NewFrameView: View {
                     .disabled(newMain.isEmpty && newDetails.isEmpty)
                 }
             }
-        }
+        }.navigationViewStyle(.stack)
     }
 
     private func addItem() {
@@ -294,4 +310,6 @@ struct HomeView: View {
 #Preview {
     ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }
+
+
 
