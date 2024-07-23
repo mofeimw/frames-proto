@@ -55,10 +55,10 @@
 		5B18E3782C4F7BBD00A55717 /* Frames */ = {
 			isa = PBXGroup;
 			children = (
-				5B18E3792C4F7BBD00A55717 /* FramesApp.swift */,
 				5B18E37B2C4F7BBD00A55717 /* ContentView.swift */,
 				5B18E37D2C4F7BBE00A55717 /* Assets.xcassets */,
 				5B18E3822C4F7BBE00A55717 /* Persistence.swift */,
+				5B18E3792C4F7BBD00A55717 /* FramesApp.swift */,
 				5B18E3842C4F7BBE00A55717 /* Frames.xcdatamodeld */,
 				5B18E37F2C4F7BBE00A55717 /* Preview Content */,
 			);
