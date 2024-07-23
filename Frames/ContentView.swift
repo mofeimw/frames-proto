@@ -70,14 +70,6 @@ struct FramesView: View {
                 }
             }
             .navigationTitle("Frames")
-            //.navigationBarTitleDisplayMode(.inline)
-            //.toolbar {
-                //ToolbarItem(placement: .principal) {
-                    //Text("Frames")
-                        //.font(.largeTitle)
-                        //.fontWeight(.bold)
-                //}
-            //}
         }
         .fullScreenCover(isPresented: $showNewFrame) {
             NewFrameView(isPresented: $showNewFrame)
@@ -103,18 +95,28 @@ struct FrameItemView: View {
     let item: Item
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            if let timestamp = item.timestamp {
-                Text(timestamp, formatter: itemFormatter)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+        HStack(alignment: .top, spacing: 15) {
+            VStack(alignment: .leading, spacing: 10) {
+                if let timestamp = item.timestamp {
+                    Text(timestamp, formatter: itemFormatter)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Text(item.main ?? "")
+                    .font(.headline)
+                    .lineLimit(2)
+                Text(item.details ?? "")
+                    .font(.body)
+                    .lineLimit(3)
             }
-            Text(item.main ?? "")
-                .font(.headline)
-                .lineLimit(2)
-            Text(item.details ?? "")
-                .font(.body)
-                .lineLimit(3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            if let pictureData = item.picture, let uiImage = UIImage(data: pictureData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 100, height: 100)
+            }
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -137,6 +139,8 @@ struct NewFrameView: View {
     @Binding var isPresented: Bool
     @State private var newMain = ""
     @State private var newDetails = ""
+    @State private var selectedImage: UIImage? = nil
+    @State private var showImagePicker = false
 
     var body: some View {
         NavigationView {
@@ -154,9 +158,9 @@ struct NewFrameView: View {
                         .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
                         .frame(maxHeight: .infinity)
                 }
-                
+
                 VStack(alignment: .leading, spacing: 5) {
-                    Text("Use this space for additional details.")
+                    Text("Use this space for additional details")
                         .font(.headline)
                         .fontWeight(.regular)
                         .foregroundColor(.primary)
@@ -167,6 +171,36 @@ struct NewFrameView: View {
                         .cornerRadius(10)
                         .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
                         .frame(maxHeight: .infinity)
+                }
+
+                VStack(alignment: .center, spacing: 5) {
+                    Text("Add a picture here")
+                        .font(.headline)
+                        .fontWeight(.regular)
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    
+                    Button(action: {
+                        showImagePicker.toggle()
+                    }) {
+                        HStack {
+                            if let image = selectedImage {
+                                Image(uiImage: image)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(height: 200)
+                                    .cornerRadius(10)
+                            } else {
+                                Text("Select Image")
+                                    .font(.body)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .center)
+                    }
+                    .sheet(isPresented: $showImagePicker) {
+                        ImagePicker(image: $selectedImage, onImagePicked: { })
+                    }
                 }
             }
             .padding()
@@ -194,12 +228,53 @@ struct NewFrameView: View {
             newItem.timestamp = Date()
             newItem.main = newMain
             newItem.details = newDetails
+            if let image = selectedImage {
+                newItem.picture = image.jpegData(compressionQuality: 1.0)
+            }
             do {
                 try viewContext.save()
             } catch {
                 let nsError = error as NSError
                 fatalError("Unresolved error \(nsError), \(nsError.userInfo)")
             }
+        }
+    }
+}
+
+struct ImagePicker: UIViewControllerRepresentable {
+    @Binding var image: UIImage?
+    var onImagePicked: (() -> Void)?
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(self)
+    }
+
+    func makeUIViewController(context: Context) -> UIImagePickerController {
+        let picker = UIImagePickerController()
+        picker.sourceType = .photoLibrary
+        picker.delegate = context.coordinator
+        return picker
+    }
+
+    func updateUIViewController(_ uiViewController: UIImagePickerController, context: Context) {}
+
+    class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+        var parent: ImagePicker
+
+        init(_ parent: ImagePicker) {
+            self.parent = parent
+        }
+
+        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+            if let uiImage = info[.originalImage] as? UIImage {
+                parent.image = uiImage
+            }
+            parent.onImagePicked?()
+            picker.dismiss(animated: true)
+        }
+
+        func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+            picker.dismiss(animated: true)
         }
     }
 }
