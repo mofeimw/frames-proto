@@ -107,10 +107,71 @@ struct FramesView: View {
     }
 }
 
+struct FrameDetailView: View {
+    let item: Item
+    @Environment(\.managedObjectContext) private var viewContext
+    @State private var isBookmarked: Bool
+    
+    init(item: Item) {
+        self.item = item
+        _isBookmarked = State(initialValue: item.isBookmarked)
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 20) {
+                if let timestamp = item.timestamp {
+                    Text(timestamp, formatter: itemFormatter)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                }
+
+                Text(item.main ?? "")
+                    .font(.title)
+                    .fontWeight(.bold)
+
+                Text(item.details ?? "")
+                    .font(.body)
+
+                if let pictureData = item.picture, let uiImage = UIImage(data: pictureData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(maxHeight: 300)
+                        .cornerRadius(10)
+                }
+            }
+            .padding()
+        }
+        .navigationBarTitle("Frame Details", displayMode: .inline)
+        .navigationBarItems(trailing:
+            Button(action: {
+                toggleBookmark()
+            }) {
+                Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+            }
+        )
+    }
+    
+    private func toggleBookmark() {
+        isBookmarked.toggle()
+        item.isBookmarked = isBookmarked
+        do {
+            try viewContext.save()
+        } catch {
+            print("Failed to save bookmark state: \(error)")
+        }
+    }
+}
+
 struct FrameItemView: View {
     let item: Item
+    @State private var showDetail = false
     
     var body: some View {
+        Button(action: {
+            showDetail = true
+        }) {
         HStack(alignment: .top, spacing: 15) {
             VStack(alignment: .leading, spacing: 10) {
                 if let timestamp = item.timestamp {
@@ -124,22 +185,30 @@ struct FrameItemView: View {
                 Text(item.details ?? "")
                     .font(.body)
                     .lineLimit(3)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                if let pictureData = item.picture, let uiImage = UIImage(data: pictureData) {
+                    Image(uiImage: uiImage)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 100, height: 100)
+                }
             }
+
+            .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
-            
-            if let pictureData = item.picture, let uiImage = UIImage(data: pictureData) {
-                Image(uiImage: uiImage)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 100, height: 100)
+            .background(Color(.systemBackground))
+            .cornerRadius(10)
+            .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+            .padding(.horizontal)
+        }
+        .buttonStyle(PlainButtonStyle())
+        .sheet(isPresented: $showDetail) {
+            NavigationView {
+                FrameDetailView(item: item)
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemBackground))
-        .cornerRadius(10)
-        .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
-        .padding(.horizontal)
     }
 }
 
@@ -244,6 +313,7 @@ struct NewFrameView: View {
             newItem.timestamp = Date()
             newItem.main = newMain
             newItem.details = newDetails
+            newItem.isBookmarked = false
             if let image = selectedImage {
                 newItem.picture = image.jpegData(compressionQuality: 1.0)
             }
@@ -389,7 +459,7 @@ struct SettingsView: View {
     
     var body: some View {
         NavigationView {
-            Text("Settings View")
+            Text("Settings")
                 .navigationBarTitle("Settings", displayMode: .inline)
                 .navigationBarItems(trailing: Button("Done") {
                     presentationMode.wrappedValue.dismiss()
@@ -400,14 +470,38 @@ struct SettingsView: View {
 
 struct CollectionView: View {
     @Environment(\.presentationMode) var presentationMode
+    @FetchRequest(
+        entity: Item.entity(),
+        sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: false)],
+        predicate: NSPredicate(format: "isBookmarked == %@", NSNumber(value: true))
+    ) private var bookmarkedItems: FetchedResults<Item>
     
     var body: some View {
         NavigationView {
-            Text("Collection View")
-                .navigationBarTitle("Collection", displayMode: .inline)
-                .navigationBarItems(trailing: Button("Done") {
-                    presentationMode.wrappedValue.dismiss()
-                })
+            ZStack {
+                Color(.systemBackground).edgesIgnoringSafeArea(.all)
+                
+                if bookmarkedItems.isEmpty {
+                    Text("No frames saved")
+                        .foregroundColor(.secondary)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 15) {
+                            ForEach(bookmarkedItems) { item in
+                                NavigationLink(destination: FrameDetailView(item: item)) {
+                                    FrameItemView(item: item)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+                            }
+                        }
+                        .padding()
+                    }
+                }
+            }
+            .navigationBarTitle("Collection", displayMode: .inline)
+            .navigationBarItems(trailing: Button("Done") {
+                presentationMode.wrappedValue.dismiss()
+            })
         }
     }
 }
@@ -417,7 +511,7 @@ struct ExploreView: View {
     
     var body: some View {
         NavigationView {
-            Text("Explore View")
+            Text("Explore")
                 .navigationBarTitle("Explore", displayMode: .inline)
                 .navigationBarItems(trailing: Button("Done") {
                     presentationMode.wrappedValue.dismiss()
