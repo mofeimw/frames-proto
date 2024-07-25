@@ -296,8 +296,133 @@ struct ImagePicker: UIViewControllerRepresentable {
 }
 
 struct ProfileView: View {
+    @State private var showSettings = false
+    @State private var showCollection = false
+    @State private var showExplore = false
+    
     var body: some View {
-        Text("Profile")
+        VStack {
+            HStack(alignment: .top, spacing: 20) {
+                Circle()
+                    .fill(Color.gray)
+                    .frame(width: 100, height: 100)
+                
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("Rikki Tikki Tavi")
+                        .font(.title)
+                        .fontWeight(.bold)
+                    
+                    Text("KC | NYU '25")
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                    
+                    HStack(spacing: 20) {
+                        VStack {
+                            Text("696")
+                                .fontWeight(.bold)
+                            Text("Followers")
+                                .font(.caption)
+                        }
+                        
+                        VStack {
+                            Text("420")
+                                .fontWeight(.bold)
+                            Text("Following")
+                                .font(.caption)
+                        }
+                    }
+                    .padding(.top, 5)
+                }
+            }
+            .padding()
+            
+            VStack(spacing: 15) {
+                ProfileButton(title: "Settings", icon: "gearshape.fill", isPresented: $showSettings)
+                ProfileButton(title: "Collection", icon: "bookmark.fill", isPresented: $showCollection)
+                ProfileButton(title: "Explore", icon: "books.vertical.fill", isPresented: $showExplore)
+            }
+            .padding(.horizontal)
+            
+            Spacer()
+        }
+        .fullScreenCover(isPresented: $showSettings) {
+            SettingsView()
+        }
+        .fullScreenCover(isPresented: $showCollection) {
+            CollectionView()
+        }
+        .fullScreenCover(isPresented: $showExplore) {
+            ExploreView()
+        }
+    }
+}
+
+struct ProfileButton: View {
+    let title: String
+    let icon: String
+    @Binding var isPresented: Bool
+    
+    var body: some View {
+        Button(action: {
+            isPresented = true
+        }) {
+            HStack {
+                Image(systemName: icon)
+                    .foregroundColor(.black)
+                Text(title)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.black)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .foregroundColor(.gray)
+            }
+            .padding()
+            .background(Color(.systemBackground))
+            .cornerRadius(10)
+            .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
+        }
+    }
+}
+
+struct SettingsView: View {
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            Text("Settings View")
+                .navigationBarTitle("Settings", displayMode: .inline)
+                .navigationBarItems(trailing: Button("Done") {
+                    presentationMode.wrappedValue.dismiss()
+                })
+        }
+    }
+}
+
+struct CollectionView: View {
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            Text("Collection View")
+                .navigationBarTitle("Collection", displayMode: .inline)
+                .navigationBarItems(trailing: Button("Done") {
+                    presentationMode.wrappedValue.dismiss()
+                })
+        }
+    }
+}
+
+struct ExploreView: View {
+    @Environment(\.presentationMode) var presentationMode
+    
+    var body: some View {
+        NavigationView {
+            Text("Explore View")
+                .navigationBarTitle("Explore", displayMode: .inline)
+                .navigationBarItems(trailing: Button("Done") {
+                    presentationMode.wrappedValue.dismiss()
+                })
+        }
     }
 }
 
