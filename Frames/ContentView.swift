@@ -27,7 +27,7 @@ struct ContentView: View {
                 .tabItem {
                     Label("Profile", systemImage: "person")
                 }
-        }
+        }.accentColor(Color(hex: "#335B41"))
     }
 }
 
@@ -40,26 +40,32 @@ struct FramesView: View {
     
     @State private var showNewFrame = false
     @State private var searchText = ""
+    @State private var isSearching = false
     
     var body: some View {
         NavigationView {
-            VStack {
-                TextField("Search", text: $searchText)
-                    .padding(10)
-                    .background(Color(.systemGray6))
-                    .cornerRadius(10)
-                    .padding(.horizontal)
+            VStack(spacing: 0) {
+                if isSearching {
+                    SearchBar(text: $searchText, isSearching: $isSearching)
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .animation(.easeInOut(duration: 0.2), value: isSearching)
+                }
                 
                 ScrollView {
-                    LazyVStack(spacing: 15) {
+                    LazyVStack(spacing: 0) {
                         ForEach(filteredItems) { item in
-                            FrameItemView(item: item)
+                            VStack(spacing: 0) {
+                                FrameItemView(item: item)
+                                Rectangle()
+                                    .fill(Color(hex: "#C2CCC9"))
+                                    .frame(height: 1)
+                            }
                         }
                     }
                     .padding(.horizontal)
                 }
             }
-            .navigationTitle("Frames")
+            .background(Color(hex: "#F6F9F8"))
             .overlay(
                 Button(action: {
                     showNewFrame = true
@@ -67,14 +73,37 @@ struct FramesView: View {
                     Image(systemName: "plus")
                         .font(.title)
                         .padding()
-                        .background(Circle().fill(Color.blue))
+                        .background(Circle().fill(Color(hex: "#335B41")))
                         .foregroundColor(.white)
                 }
                 .padding(.trailing, 20)
                 .padding(.bottom, 20),
                 alignment: .bottomTrailing
             )
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HStack {
+                        Text("Frames")
+                            .font(.custom("Georgia", size: 33))
+                            .foregroundColor(Color(hex: "#335B41"))
+                            .fontWeight(.regular)
+                        Spacer()
+                    }
+                }
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: {
+                        withAnimation {
+                            isSearching.toggle()
+                        }
+                    }) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(Color(hex: "#335B41"))
+                    }
+                }
+            }
         }
+        .accentColor(Color(hex: "#335B41"))
         .fullScreenCover(isPresented: $showNewFrame) {
             NewFrameView(isPresented: $showNewFrame)
         }
@@ -104,6 +133,50 @@ struct FramesView: View {
                 return mainText || detailsText
             }
         }
+    }
+}
+
+struct SearchBar: View {
+    @Binding var text: String
+    @Binding var isSearching: Bool
+    
+    var body: some View {
+        HStack {
+            TextField("Search", text: $text)
+                .padding(7)
+                .padding(.horizontal, 25)
+                .background(Color(.systemGray6))
+                .cornerRadius(8)
+                .overlay(
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.gray)
+                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                            .padding(.leading, 8)
+                        
+                        if !text.isEmpty {
+                            Button(action: {
+                                self.text = ""
+                            }) {
+                                Image(systemName: "multiply.circle.fill")
+                                    .foregroundColor(.gray)
+                                    .padding(.trailing, 8)
+                            }
+                        }
+                    }
+                )
+            
+            Button(action: {
+                withAnimation {
+                    self.isSearching = false
+                    self.text = ""
+                }
+            }) {
+                Text("Cancel")
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 10)
     }
 }
 
@@ -143,7 +216,7 @@ struct FrameDetailView: View {
             }
             .padding()
         }
-        .navigationBarTitle("Frame Details", displayMode: .inline)
+        //.navigationBarTitle("Frame Details", displayMode: .inline)
         .navigationBarItems(trailing:
             Button(action: {
                 toggleBookmark()
@@ -172,7 +245,7 @@ struct FrameItemView: View {
         Button(action: {
             showDetail = true
         }) {
-        HStack(alignment: .top, spacing: 15) {
+        HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 10) {
                 if let timestamp = item.timestamp {
                     Text(timestamp, formatter: itemFormatter)
@@ -195,13 +268,9 @@ struct FrameItemView: View {
                         .frame(width: 100, height: 100)
                 }
             }
-
-            .padding()
+            .padding(.vertical)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color(.systemBackground))
-            .cornerRadius(10)
-            .shadow(color: Color.black.opacity(0.2), radius: 5, x: 0, y: 2)
-            .padding(.horizontal)
+            .background(Color(hex: "#F6F9F8"))
         }
         .buttonStyle(PlainButtonStyle())
         .sheet(isPresented: $showDetail) {
@@ -526,9 +595,33 @@ struct HomeView: View {
     }
 }
 
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (1, 1, 1, 0)
+        }
+
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue:  Double(b) / 255,
+            opacity: Double(a) / 255
+        )
+    }
+}
+
 #Preview {
     ContentView().environment(\.managedObjectContext, PersistenceController.preview.container.viewContext)
 }
-
-
-
