@@ -31,12 +31,35 @@ struct ContentView: View {
     }
 }
 
+func formatDate(_ date: Date) -> (monthYear: String, dayWeekDate: String) {
+    let monthYearFormatter = DateFormatter()
+    monthYearFormatter.dateFormat = "MMMM yyyy"
+    
+    let dayWeekFormatter = DateFormatter()
+    dayWeekFormatter.dateFormat = "EEEE, d"
+    
+    return (monthYearFormatter.string(from: date), dayWeekFormatter.string(from: date))
+}
+
 struct FramesView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @FetchRequest(
         sortDescriptors: [NSSortDescriptor(keyPath: \Item.timestamp, ascending: false)],
         animation: .default)
     private var items: FetchedResults<Item>
+    
+    private var groupedItems: [(String, [Item])] {
+        let grouped = Dictionary(grouping: filteredItems) { item in
+            formatDate(item.timestamp ?? Date()).monthYear
+        }
+        return grouped.sorted { pair1, pair2 in
+            let formatter = DateFormatter()
+            formatter.dateFormat = "MMMM yyyy"
+            let date1 = formatter.date(from: pair1.key) ?? Date.distantPast
+            let date2 = formatter.date(from: pair2.key) ?? Date.distantPast
+            return date1 > date2
+        }
+    }
     
     @State private var showNewFrame = false
     @State private var searchText = ""
@@ -68,13 +91,19 @@ struct FramesView: View {
                             .cornerRadius(8)
                             .padding()
                         
-                        LazyVStack(spacing: 0) {
-                            ForEach(filteredItems) { item in
-                                VStack(spacing: 0) {
-                                    FrameItemView(item: item)
-                                    Rectangle()
-                                        .fill(Color(hex: "#C2CCC9"))
-                                        .frame(height: 1)
+                        LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
+                            ForEach(groupedItems, id: \.0) { monthYear, items in
+                                Section(header: monthYearHeader(monthYear)) {
+                                    ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                                        VStack(spacing: 0) {
+                                            FrameItemView(item: item)
+                                            if index < items.count - 1 {
+                                                Rectangle()
+                                                    .fill(Color(hex: "#C2CCC9"))
+                                                    .frame(height: 1)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -165,6 +194,21 @@ struct FramesView: View {
         ]
         
         return quotes.randomElement() ?? ""
+    }
+    
+    private func monthYearHeader(_ monthYear: String) -> some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(monthYear)
+                    .font(.headline)
+                    .padding(.vertical, 5)
+                Spacer()
+            }
+            .background(Color(hex: "#F6F9F8"))
+            Rectangle()
+                .fill(Color(hex: "#A8C0B3"))
+                .frame(height: 4)
+        }
     }
 }
 
@@ -268,22 +312,22 @@ struct FrameItemView: View {
         Button(action: {
             showDetail = true
         }) {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 10) {
-                if let timestamp = item.timestamp {
-                    Text(timestamp, formatter: itemFormatter)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                Text(item.main ?? "")
-                    .font(.headline)
-                    .lineLimit(2)
-                Text(item.details ?? "")
-                    .font(.body)
-                    .lineLimit(3)
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 10) {
+                    if let timestamp = item.timestamp {
+                        Text(formatDate(timestamp).dayWeekDate)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    Text(item.main ?? "")
+                        .font(.headline)
+                        .lineLimit(2)
+                    Text(item.details ?? "")
+                        .font(.body)
+                        .lineLimit(3)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                        
+                
                 if let pictureData = item.picture, let uiImage = UIImage(data: pictureData) {
                     Image(uiImage: uiImage)
                         .resizable()
