@@ -41,6 +41,11 @@ struct FramesView: View {
     @State private var showNewFrame = false
     @State private var searchText = ""
     @State private var isSearching = false
+    @State private var randomQuote: String = ""
+    
+    init() {
+        _randomQuote = State(initialValue: getRandomQuote())
+    }
     
     var body: some View {
         NavigationView {
@@ -52,17 +57,29 @@ struct FramesView: View {
                 }
                 
                 ScrollView {
-                    LazyVStack(spacing: 0) {
-                        ForEach(filteredItems) { item in
-                            VStack(spacing: 0) {
-                                FrameItemView(item: item)
-                                Rectangle()
-                                    .fill(Color(hex: "#C2CCC9"))
-                                    .frame(height: 1)
+                    VStack(spacing: 0) {
+                        Text("\"\(randomQuote)\"")
+                            .font(.system(size: 16))
+                            .fontWeight(.semibold)
+                            .foregroundColor(Color(hex: "#1e3024"))
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(Color(hex: "#9DCBBA"))
+                            .cornerRadius(8)
+                            .padding()
+                        
+                        LazyVStack(spacing: 0) {
+                            ForEach(filteredItems) { item in
+                                VStack(spacing: 0) {
+                                    FrameItemView(item: item)
+                                    Rectangle()
+                                        .fill(Color(hex: "#C2CCC9"))
+                                        .frame(height: 1)
+                                }
                             }
                         }
+                        .padding(.horizontal)
                     }
-                    .padding(.horizontal)
                 }
             }
             .background(Color(hex: "#F6F9F8"))
@@ -107,6 +124,9 @@ struct FramesView: View {
         .fullScreenCover(isPresented: $showNewFrame) {
             NewFrameView(isPresented: $showNewFrame)
         }
+        .padding(.horizontal, 20)
+        .background(Color(hex: "#F6F9F8"))
+        .scrollIndicators(.hidden)
         //.onAppear(perform: deleteAllItems) // FOR DEBUGGING
     }
     
@@ -133,6 +153,18 @@ struct FramesView: View {
                 return mainText || detailsText
             }
         }
+    }
+    
+    private func getRandomQuote() -> String {
+        let quotes = [
+            "The only limit to our realization of tomorrow is our doubts of today.",
+            "The future belongs to those who believe in the beauty of their dreams.",
+            "Do not watch the clock. Do what it does. Keep going.",
+            "Keep your face always toward the sunshine—and shadows will fall behind you.",
+            "The best way to predict your future is to create it."
+        ]
+        
+        return quotes.randomElement() ?? ""
     }
 }
 
@@ -165,15 +197,6 @@ struct SearchBar: View {
                         }
                     }
                 )
-            
-            Button(action: {
-                withAnimation {
-                    self.isSearching = false
-                    self.text = ""
-                }
-            }) {
-                Text("Cancel")
-            }
         }
         .padding(.horizontal)
         .padding(.top, 10)
