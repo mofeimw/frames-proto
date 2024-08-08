@@ -81,15 +81,17 @@ struct FramesView: View {
                 
                 ScrollView {
                     VStack(spacing: 0) {
-                        Text("\"\(randomQuote)\"")
-                            .font(.system(size: 16))
-                            .fontWeight(.semibold)
-                            .foregroundColor(Color(hex: "#1e3024"))
-                            .padding()
-                            .frame(maxWidth: .infinity)
-                            .background(Color(hex: "#9DCBBA"))
-                            .cornerRadius(8)
-                            .padding()
+                        if searchText == "" {
+                            Text("\"\(randomQuote)\"")
+                                .font(.system(size: 16))
+                                .fontWeight(.semibold)
+                                .foregroundColor(Color(hex: "#1e3024"))
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color(hex: "#9DCBBA"))
+                                .cornerRadius(8)
+                                .padding()
+                        }
                         
                         LazyVStack(spacing: 0, pinnedViews: [.sectionHeaders]) {
                             ForEach(groupedItems, id: \.0) { monthYear, items in
@@ -200,7 +202,8 @@ struct FramesView: View {
         VStack(spacing: 0) {
             HStack {
                 Text(monthYear)
-                    .font(.headline)
+                    .font(.system(size: 21))
+                    .fontWeight(.regular)
                     .padding(.vertical, 5)
                 Spacer()
             }
@@ -307,35 +310,66 @@ struct FrameDetailView: View {
 struct FrameItemView: View {
     let item: Item
     @State private var showDetail = false
+    @State private var isBookmarked: Bool
+    @Environment(\.managedObjectContext) private var viewContext
+    
+    init(item: Item) {
+        self.item = item
+        _isBookmarked = State(initialValue: item.isBookmarked)
+    }
     
     var body: some View {
         Button(action: {
             showDetail = true
         }) {
-            HStack(alignment: .top, spacing: 10) {
-                VStack(alignment: .leading, spacing: 10) {
-                    if let timestamp = item.timestamp {
-                        Text(formatDate(timestamp).dayWeekDate)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+            VStack(alignment: .leading, spacing: 7) {
+                HStack(alignment: .top, spacing: 0) {
+                    VStack(alignment: .leading, spacing: 5) {
+                        if let timestamp = item.timestamp {
+                            Text(formatDate(timestamp).dayWeekDate)
+                                .font(.system(size: 15))
+                                .padding(.bottom, 4)
+                        }
+                        
+                        if let mainText = item.main {
+                            Text(mainText)
+                                .font(.system(size: 20))
+                                .fontWeight(.bold)
+                                .lineLimit(2)
+                        }
+                        
+                        if let detailText = item.details, !detailText.isEmpty {
+                            Text(detailText)
+                                .font(.system(size: 16))
+                                .lineLimit(2)
+                        }
                     }
-                    Text(item.main ?? "")
-                        .font(.headline)
-                        .lineLimit(2)
-                    Text(item.details ?? "")
-                        .font(.body)
-                        .lineLimit(3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    
+                    if let pictureData = item.picture, let uiImage = UIImage(data: pictureData) {
+                        Image(uiImage: uiImage)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 100, height: 100)
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 
-                if let pictureData = item.picture, let uiImage = UIImage(data: pictureData) {
-                    Image(uiImage: uiImage)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: 100, height: 100)
+                HStack {
+                    if let timestamp = item.timestamp {
+                        Text(timestamp, formatter: itemFormatter)
+                            .font(.caption)
+                            .font(.system(size: 13))
+                    }
+                    Spacer()
+                    Button(action: {
+                        toggleBookmark()
+                    }) {
+                        Image(systemName: isBookmarked ? "bookmark.fill" : "bookmark")
+                            .foregroundColor(Color(hex: "#335B41"))
+                    }
                 }
             }
-            .padding(.vertical)
+            .padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color(hex: "#F6F9F8"))
         }
@@ -346,12 +380,22 @@ struct FrameItemView: View {
             }
         }
     }
+    
+    private func toggleBookmark() {
+        isBookmarked.toggle()
+        item.isBookmarked = isBookmarked
+        do {
+            try viewContext.save()
+        } catch {
+            print("Failed to save bookmark state: \(error)")
+        }
+    }
 }
 
 private let itemFormatter: DateFormatter = {
     let formatter = DateFormatter()
-    formatter.dateStyle = .short
-    formatter.timeStyle = .medium
+    formatter.dateStyle = .none
+    formatter.timeStyle = .short
     return formatter
 }()
 
